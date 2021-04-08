@@ -41,6 +41,14 @@ class _RegisterState extends State<Register> {
     _initializeCamera();
   }
 
+  @override
+  void dispose() {
+    print("Exiting the register page");
+    interpreter.close();
+    print("released Interpreter");
+    super.dispose();
+  }
+
   Future loadModel() async {
     try {
       final gpuDelegateV2 = tfl.GpuDelegateV2(
