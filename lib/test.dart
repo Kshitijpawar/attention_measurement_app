@@ -53,6 +53,8 @@ class _TestState extends State<Test> {
   File jsonFile;
   dynamic data = {};
   bool _isDetecting = false;
+  bool textFlag = false;
+
   bool _faceFound =
       false; //use this variable when if face is not detected....//
   List e1;
@@ -115,14 +117,15 @@ class _TestState extends State<Test> {
         if (_isDetecting) return;
         _isDetecting = true;
         String res;
-        // String attention;
+        String attention;
         // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
         detect(image, _getDetectionMethod(), rotation).then(
           (dynamic result) async {
-            if (result.length == 0)
+            if (result.length == 0) {
               _faceFound = false;
-            else
+              print("no Person Detected in Frame!!!");
+            } else
               _faceFound = true;
             Face _face;
             imglib.Image convertedImage =
@@ -138,24 +141,24 @@ class _TestState extends State<Test> {
               croppedImage = imglib.copyResizeCropSquare(croppedImage, 112);
               // int startTime = new DateTime.now().millisecondsSinceEpoch;
               res = _recog(croppedImage, _face);
-              // if (_face.headEulerAngleY.abs() < 10.0 &&
-              //     _face.headEulerAngleZ.abs() < 10.0) {
-              //   // print("Person is attentive ++");
-              //   attention = " A";
-              //   textFlag = true;
-              // } else {
-              //   // print("Person is distracted--");
-              //   // print(_face.leftEyeOpenProbability.toStringAsFixed(3));
-              //   // print(_face.rightEyeOpenProbability.toStringAsFixed(3));
-              //   attention = " D";
-              //   textFlag = false;
-              // }
+              if (_face.headEulerAngleY.abs() < 10.0 &&
+                  _face.headEulerAngleZ.abs() < 10.0) {
+                // print("Person is attentive ++");
+                attention = " Attentive";
+                textFlag = true;
+              } else {
+                // print("Person is distracted--");
+                // print(_face.leftEyeOpenProbability.toStringAsFixed(3));
+                // print(_face.rightEyeOpenProbability.toStringAsFixed(3));
+                attention = " Distracted";
+                textFlag = false;
+              }
               // // int endTime = new DateTime.now().millisecondsSinceEpoch;
               // // print("Inference took ${endTime - startTime}ms");
               // // print(res);
               // print(res + attention);
-              // finalResult.add(res + attention, _face);
-              finalResult.add(res, _face);
+              finalResult.add(res + attention, _face);
+              // finalResult.add(res, _face);
             }
             setState(() {
               // print("inside final result");
@@ -200,7 +203,10 @@ class _TestState extends State<Test> {
       _camera.value.previewSize.height,
       _camera.value.previewSize.width,
     );
-    painter = FaceDetectorPainter(imageSize, _scanResults);
+    painter = FaceDetectorPainter(
+      imageSize,
+      _scanResults,
+    );
     return CustomPaint(
       painter: painter,
     );
@@ -253,28 +259,6 @@ class _TestState extends State<Test> {
     final List<String> userAccelerometer = _userAccelerometerValues
         ?.map((double v) => v.toStringAsFixed(3))
         ?.toList();
-    // logFile.writeAsString("acce")
-    FLog.logThis(
-      className: "HomePage",
-      methodName: "accelerometer",
-      text: accelerometer.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-    FLog.logThis(
-      className: "HomePage",
-      methodName: "gyroscope",
-      text: gyroscope.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-    FLog.logThis(
-      className: "HomePage",
-      methodName: "user_accelerometer",
-      text: userAccelerometer.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
 
     return Scaffold(
       appBar: new AppBar(
@@ -334,7 +318,6 @@ class _TestState extends State<Test> {
       //       ),
       //       FloatingActionButton(
       //         onPressed: () {
-      //           FLog.exportLogs();
       //         },
       //         backgroundColor: Colors.blue,
       //         child: Icon(Icons.ac_unit_outlined),
@@ -411,7 +394,7 @@ class _TestState extends State<Test> {
       subscription.cancel();
     }
     print("exiting the test page");
-    interpreter.close();
+    // interpreter.close();
     print("released Interpreter");
 
     super.dispose();
@@ -423,7 +406,6 @@ class _TestState extends State<Test> {
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
-    FLog.clearLogs();
     init();
     // _initLogs();
     _streamSubscriptions

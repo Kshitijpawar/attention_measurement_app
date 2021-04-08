@@ -44,7 +44,7 @@ class _RegisterState extends State<Register> {
   @override
   void dispose() {
     print("Exiting the register page");
-    interpreter.close();
+    // interpreter.close();
     print("released Interpreter");
     super.dispose();
   }
@@ -98,9 +98,10 @@ class _RegisterState extends State<Register> {
         dynamic finalResult = Multimap<String, Face>();
         detect(image, _getDetectionMethod(), rotation).then(
           (dynamic result) async {
-            if (result.length == 0)
+            if (result.length == 0) {
               _faceFound = false;
-            else
+              print("No Person found in frame");
+            } else
               _faceFound = true;
             Face _face;
             imglib.Image convertedImage =
