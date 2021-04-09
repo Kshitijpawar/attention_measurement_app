@@ -373,7 +373,7 @@ class _TestState extends State<Test> {
   }
 
   String compare(List currEmb) {
-    if (data.length == 0) return "?";
+    if (data.length == 0) return "No Face saved";
     double minDist = 999;
     double currDist = 0.0;
     String predRes = "NOT RECOGNIZED";

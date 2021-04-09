@@ -22,6 +22,7 @@ class _RegisterState extends State<Register> {
   dynamic _scanResults;
   bool textFlag = false;
   // dynamic _attentionResults;
+  // var _baseStopwatch = Stopwatch();
   CameraController _camera;
   var interpreter;
   bool _isDetecting = false;
@@ -71,6 +72,8 @@ class _RegisterState extends State<Register> {
 
   void _initializeCamera() async {
     await loadModel();
+    // print("Model loaded and stopwatch started");
+    // _baseStopwatch.start();
     CameraDescription description = await getCamera(_direction);
 
     ImageRotation rotation = rotationIntToImageRotation(
@@ -186,12 +189,12 @@ class _RegisterState extends State<Register> {
   }
 
   Widget _buildImage() {
+    // print("INSIDE BUILD IMAGE");
     if (_camera == null || !_camera.value.isInitialized) {
       return Center(
         child: CircularProgressIndicator(),
       );
     }
-
     return Container(
       constraints: const BoxConstraints.expand(),
       child: _camera == null
@@ -204,7 +207,39 @@ class _RegisterState extends State<Register> {
               ],
             ),
     );
+    // if (timeElapsed <= 30) {
+    //   print("turn on camera");
+    //   print(timeElapsed);
+    //   return Container(
+    //     constraints: const BoxConstraints.expand(),
+    //     child: _camera == null
+    //         ? const Center(child: null)
+    //         : Stack(
+    //             fit: StackFit.expand,
+    //             children: <Widget>[
+    //               CameraPreview(_camera),
+    //               _buildResults(),
+    //             ],
+    //           ),
+    //   );
+    // } else if (timeElapsed <= 40) {
+    //   print("turn off the camera");
+    //   print(timeElapsed);
+    //   _turnOffCamera();
+    //   return Center(
+    //     child: Text("Camera is off for cooldown"),
+    //   );
+    // } else if (timeElapsed > 40) {
+    //   // print("reset the stopwatch");
+    //   // _baseStopwatch.reset();
+    //   _initializeCamera();
+    // }
   }
+
+  // void _turnOffCamera() async {
+  //   await _camera.stopImageStream();
+  //   await _camera.dispose();
+  // }
 
   void _toggleCameraDirection() async {
     if (_direction == CameraLensDirection.back) {
@@ -248,6 +283,7 @@ class _RegisterState extends State<Register> {
           ),
         ],
       ),
+      // body: _buildImage(_baseStopwatch.elapsed.inSeconds),
       body: _buildImage(),
       floatingActionButton:
           Column(mainAxisAlignment: MainAxisAlignment.end, children: [

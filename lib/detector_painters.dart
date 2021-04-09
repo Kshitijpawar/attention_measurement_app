@@ -39,8 +39,8 @@ class FaceDetectorPainter extends CustomPainter {
         textPainter.paint(
             canvas,
             new Offset(
-                size.width - (60 + face.boundingBox.left.toDouble()) * scaleX,
-                (face.boundingBox.top.toDouble() - 10) * scaleY));
+                size.width - (120 + face.boundingBox.left.toDouble()) * scaleX,
+                (face.boundingBox.top.toDouble() - 20) * scaleY));
       }
     }
   }
