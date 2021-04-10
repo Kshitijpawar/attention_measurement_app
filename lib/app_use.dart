@@ -21,7 +21,6 @@ class _AppUseState extends State<AppUse> {
   @override
   void initState() {
     super.initState();
-    // print(mainDate);
   }
 
   void getUsageStats() async {
@@ -34,8 +33,6 @@ class _AppUseState extends State<AppUse> {
       setState(() {
         _infos = infoList;
       });
-      print(mainDate);
-      print(endDate);
       if (infoList.isEmpty) {
         print("list is empty");
       }
@@ -49,7 +46,6 @@ class _AppUseState extends State<AppUse> {
 
   @override
   Widget build(BuildContext context) {
-    // print(mainDate);
     return Scaffold(
       appBar: AppBar(
         title: const Text('App Usage'),

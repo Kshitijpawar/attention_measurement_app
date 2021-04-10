@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:environment_sensors/environment_sensors.dart';
 import 'package:flutter/material.dart';
 import 'package:f_logs/f_logs.dart';
 import 'package:sensors/sensors.dart';
+// import 'package:flutter_sensors/flutter_sensors.dart';
 
 class DebugSensor extends StatefulWidget {
   @override
@@ -30,11 +32,26 @@ init() {
 }
 
 class _DebugSensorState extends State<DebugSensor> {
+  bool _isLightAvailable = false;
+  String _lightVal;
+  final envSensors = EnvironmentSensors();
   List<double> _accelerometerValues;
   List<double> _userAccelerometerValues;
   List<double> _gyroscopeValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
+
+  // void _checkLightStatus() async {
+  //   await SensorManager().isSensorAvailable(TYPE_LIGHT).then((result) async {
+  //     print("inside check light");
+  //     print(result);
+  //     lightStream = await SensorManager().sensorUpdates(sensorId: TYPE_LIGHT);
+  //     setState(() {
+  //       _isLightAvailable = result;
+  //     });
+  //   });
+  // }
+
   @override
   void dispose() {
     super.dispose();
@@ -47,8 +64,15 @@ class _DebugSensorState extends State<DebugSensor> {
   @override
   void initState() {
     super.initState();
+    initPlatformState();
     init();
     FLog.clearLogs();
+
+    _streamSubscriptions.add(envSensors.light.listen((double lightv) {
+      setState(() {
+        _lightVal = lightv.toString();
+      });
+    }));
 
     _streamSubscriptions
         .add(accelerometerEvents.listen((AccelerometerEvent event) {
@@ -69,6 +93,17 @@ class _DebugSensorState extends State<DebugSensor> {
     }));
   }
 
+  Future<void> initPlatformState() async {
+    bool lightAvailable;
+
+    lightAvailable =
+        await envSensors.getSensorAvailable(SensorType.Light);
+
+    setState(() {
+      _isLightAvailable = lightAvailable;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<String> accelerometer =
@@ -78,27 +113,30 @@ class _DebugSensorState extends State<DebugSensor> {
     final List<String> userAccelerometer = _userAccelerometerValues
         ?.map((double v) => v.toStringAsFixed(1))
         ?.toList();
-    FLog.logThis(
-      className: "DebugSensor",
-      methodName: "accelerometer",
-      text: accelerometer.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-    FLog.logThis(
-      className: "DebugSensor",
-      methodName: "gyroscope",
-      text: gyroscope.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-    FLog.logThis(
-      className: "DebugSensor",
-      methodName: "user_accelerometer",
-      text: userAccelerometer.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
+
+    // final List<String> lightThe =
+    // _lightValues?.map((double v) => v.toStringAsFixed(2))?.toList();
+    // FLog.logThis(
+    //   className: "DebugSensor",
+    //   methodName: "accelerometer",
+    //   text: accelerometer.toString(),
+    //   type: LogLevel.INFO,
+    //   dataLogType: DataLogType.DEVICE.toString(),
+    // );
+    // FLog.logThis(
+    //   className: "DebugSensor",
+    //   methodName: "gyroscope",
+    //   text: gyroscope.toString(),
+    //   type: LogLevel.INFO,
+    //   dataLogType: DataLogType.DEVICE.toString(),
+    // );
+    // FLog.logThis(
+    //   className: "DebugSensor",
+    //   methodName: "user_accelerometer",
+    //   text: userAccelerometer.toString(),
+    //   type: LogLevel.INFO,
+    //   dataLogType: DataLogType.DEVICE.toString(),
+    // );
 
     return Scaffold(
       appBar: AppBar(
@@ -130,6 +168,15 @@ class _DebugSensorState extends State<DebugSensor> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 Text('Gyroscope: $gyroscope'),
+              ],
+            ),
+            padding: const EdgeInsets.all(16.0),
+          ),
+          Padding(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text('Light Values: $_lightVal'),
               ],
             ),
             padding: const EdgeInsets.all(16.0),

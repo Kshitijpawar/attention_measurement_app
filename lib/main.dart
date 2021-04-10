@@ -28,12 +28,27 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => new _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
+  AppLifecycleState _notification;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // print(state.toString());
+    setState(() {
+      _notification = state;
+    });
+  }
+
   DateTime mainDate;
   void initState() {
     super.initState();
-    print("inside initState of Main Page");
+    WidgetsBinding.instance.addObserver(this);
     mainDate = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

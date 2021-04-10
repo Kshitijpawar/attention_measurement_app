@@ -54,7 +54,7 @@ class _TestState extends State<Test> {
   dynamic data = {};
   bool _isDetecting = false;
   bool textFlag = false;
-
+  var _baseStopwatch = Stopwatch();
   bool _faceFound =
       false; //use this variable when if face is not detected....//
   List e1;
@@ -62,8 +62,6 @@ class _TestState extends State<Test> {
 
   //----------------FACE------------------------------------
   //----------------TIMER VAR-----------------------------------
-  int _totalTimeElapsedSinceInception;
-  var _baseStopwatch;
   //----------------TIMER VAR-----------------------------------
   //-----------SENSORS----------------------------------------------------------------------
   List<double> _accelerometerValues;
@@ -95,6 +93,7 @@ class _TestState extends State<Test> {
 
   void _initializeCamera() async {
     await loadModel();
+    _baseStopwatch.start();
     CameraDescription description = await getCamera(_direction);
 
     ImageRotation rotation = rotationIntToImageRotation(
@@ -120,11 +119,13 @@ class _TestState extends State<Test> {
         String attention;
         // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
-        detect(image, _getDetectionMethod(), rotation).then(
+        detect(image, _getDetectionMethod(), rotation, _baseStopwatch).then(
           (dynamic result) async {
             if (result.length == 0) {
-              _faceFound = false;
-              print("no Person Detected in Frame!!!");
+              if (_baseStopwatch.elapsed.inMicroseconds <= 4000000) {
+                _faceFound = false;
+                print("No Person found in frame");
+              }
             } else
               _faceFound = true;
             Face _face;
@@ -143,25 +144,15 @@ class _TestState extends State<Test> {
               res = _recog(croppedImage, _face);
               if (_face.headEulerAngleY.abs() < 10.0 &&
                   _face.headEulerAngleZ.abs() < 10.0) {
-                // print("Person is attentive ++");
                 attention = " Attentive";
                 textFlag = true;
               } else {
-                // print("Person is distracted--");
-                // print(_face.leftEyeOpenProbability.toStringAsFixed(3));
-                // print(_face.rightEyeOpenProbability.toStringAsFixed(3));
                 attention = " Distracted";
                 textFlag = false;
               }
-              // // int endTime = new DateTime.now().millisecondsSinceEpoch;
-              // // print("Inference took ${endTime - startTime}ms");
-              // // print(res);
-              // print(res + attention);
               finalResult.add(res + attention, _face);
-              // finalResult.add(res, _face);
             }
             setState(() {
-              // print("inside final result");
 
               // _scanResults = finalResult + " " + _attentionResults;
               _scanResults = finalResult;
@@ -212,6 +203,20 @@ class _TestState extends State<Test> {
     );
   }
 
+  bool _timeInterval() {
+    if (_baseStopwatch.elapsed.inMicroseconds <= 4000000) {
+      // print(_baseStopwatch.elapsed.inSeconds.toString() + "in active");
+      return true;
+    } else if (_baseStopwatch.elapsed.inMicroseconds < 10000000) {
+      // print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
+      return false;
+    } else if (_baseStopwatch.elapsed.inMicroseconds > 10000000) {
+      print(_baseStopwatch.elapsed.inSeconds.toString() + "cyclecomplete");
+      _baseStopwatch.reset();
+      return true;
+    }
+  }
+
   Widget _buildImage() {
     if (_camera == null || !_camera.value.isInitialized) {
       return Center(
@@ -226,30 +231,16 @@ class _TestState extends State<Test> {
           : Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                CameraPreview(_camera),
-                _buildResults(),
+                _timeInterval()
+                    ? CameraPreview(_camera)
+                    : Text('Camera in Cooldown'),
+                _timeInterval() ? _buildResults() : Text(''),
               ],
             ),
     );
   }
 
-  // void _toggleCameraDirection() async {
-  //   if (_direction == CameraLensDirection.back) {
-  //     _direction = CameraLensDirection.front;
-  //   } else {
-  //     _direction = CameraLensDirection.back;
-  //   }
-  //   await _camera.stopImageStream();
-  //   await _camera.dispose();
 
-  //   setState(() {
-  //     _camera = null;
-  //   });
-
-  //   _initializeCamera();
-  // }
-
-  // print(_streamSub)
   @override
   Widget build(BuildContext context) {
     final List<String> accelerometer =
@@ -384,7 +375,6 @@ class _TestState extends State<Test> {
         predRes = label;
       }
     }
-    // print(minDist.toString() + " " + predRes);
     return predRes;
   }
 

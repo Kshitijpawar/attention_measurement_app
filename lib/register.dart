@@ -22,7 +22,7 @@ class _RegisterState extends State<Register> {
   dynamic _scanResults;
   bool textFlag = false;
   // dynamic _attentionResults;
-  // var _baseStopwatch = Stopwatch();
+
   CameraController _camera;
   var interpreter;
   bool _isDetecting = false;
@@ -36,7 +36,6 @@ class _RegisterState extends State<Register> {
   @override
   void initState() {
     super.initState();
-
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
@@ -44,9 +43,8 @@ class _RegisterState extends State<Register> {
 
   @override
   void dispose() {
-    print("Exiting the register page");
-    // interpreter.close();
-    print("released Interpreter");
+    _camera.dispose();
+
     super.dispose();
   }
 
@@ -72,8 +70,7 @@ class _RegisterState extends State<Register> {
 
   void _initializeCamera() async {
     await loadModel();
-    // print("Model loaded and stopwatch started");
-    // _baseStopwatch.start();
+
     CameraDescription description = await getCamera(_direction);
 
     ImageRotation rotation = rotationIntToImageRotation(
@@ -99,12 +96,11 @@ class _RegisterState extends State<Register> {
         // String attention;
         // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
-        detect(image, _getDetectionMethod(), rotation).then(
+        detect(image, _getDetectionMethod(), rotation, null).then(
           (dynamic result) async {
-            if (result.length == 0) {
+            if (result.length == 0)
               _faceFound = false;
-              print("No Person found in frame");
-            } else
+            else
               _faceFound = true;
             Face _face;
             imglib.Image convertedImage =
@@ -120,27 +116,10 @@ class _RegisterState extends State<Register> {
               croppedImage = imglib.copyResizeCropSquare(croppedImage, 112);
               // int startTime = new DateTime.now().millisecondsSinceEpoch;
               res = _recog(croppedImage, _face);
-              // if (_face.headEulerAngleY.abs() < 10.0 &&
-              //     _face.headEulerAngleZ.abs() < 10.0) {
-              //   // print("Person is attentive ++");
-              //   attention = " A";
-              //   textFlag = true;
-              // } else {
-              //   // print("Person is distracted--");
-              //   // print(_face.leftEyeOpenProbability.toStringAsFixed(3));
-              //   // print(_face.rightEyeOpenProbability.toStringAsFixed(3));
-              //   attention = " D";
-              //   textFlag = false;
-              // }
-              // // int endTime = new DateTime.now().millisecondsSinceEpoch;
-              // // print("Inference took ${endTime - startTime}ms");
-              // // print(res);
-              // print(res + attention);
-              // finalResult.add(res + attention, _face);
+              
               finalResult.add(res, _face);
             }
             setState(() {
-              // print("inside final result");
 
               // _scanResults = finalResult + " " + _attentionResults;
               _scanResults = finalResult;
@@ -189,7 +168,6 @@ class _RegisterState extends State<Register> {
   }
 
   Widget _buildImage() {
-    // print("INSIDE BUILD IMAGE");
     if (_camera == null || !_camera.value.isInitialized) {
       return Center(
         child: CircularProgressIndicator(),
@@ -207,39 +185,9 @@ class _RegisterState extends State<Register> {
               ],
             ),
     );
-    // if (timeElapsed <= 30) {
-    //   print("turn on camera");
-    //   print(timeElapsed);
-    //   return Container(
-    //     constraints: const BoxConstraints.expand(),
-    //     child: _camera == null
-    //         ? const Center(child: null)
-    //         : Stack(
-    //             fit: StackFit.expand,
-    //             children: <Widget>[
-    //               CameraPreview(_camera),
-    //               _buildResults(),
-    //             ],
-    //           ),
-    //   );
-    // } else if (timeElapsed <= 40) {
-    //   print("turn off the camera");
-    //   print(timeElapsed);
-    //   _turnOffCamera();
-    //   return Center(
-    //     child: Text("Camera is off for cooldown"),
-    //   );
-    // } else if (timeElapsed > 40) {
-    //   // print("reset the stopwatch");
-    //   // _baseStopwatch.reset();
-    //   _initializeCamera();
-    // }
   }
 
-  // void _turnOffCamera() async {
-  //   await _camera.stopImageStream();
-  //   await _camera.dispose();
-  // }
+  
 
   void _toggleCameraDirection() async {
     if (_direction == CameraLensDirection.back) {
@@ -285,6 +233,7 @@ class _RegisterState extends State<Register> {
       ),
       // body: _buildImage(_baseStopwatch.elapsed.inSeconds),
       body: _buildImage(),
+      // body: _timeInterval(),
       floatingActionButton:
           Column(mainAxisAlignment: MainAxisAlignment.end, children: [
         FloatingActionButton(
@@ -365,7 +314,6 @@ class _RegisterState extends State<Register> {
         predRes = label;
       }
     }
-    // print(minDist.toString() + " " + predRes);
     return predRes;
   }
 

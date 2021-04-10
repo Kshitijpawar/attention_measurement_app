@@ -78,6 +78,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.2"
+  environment_sensors:
+    dependency: "direct main"
+    description:
+      name: environment_sensors
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.2.0"
   f_logs:
     dependency: "direct main"
     description:
