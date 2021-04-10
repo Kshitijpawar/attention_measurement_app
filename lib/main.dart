@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/noise_detect.dart';
 import 'package:mainapp/register.dart';
 import 'package:mainapp/test.dart';
 import 'package:mainapp/app_use.dart';
@@ -29,12 +30,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
-  AppLifecycleState _notification;
+  AppLifecycleState _notificationFromMain;
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // print(state.toString());
     setState(() {
-      _notification = state;
+      _notificationFromMain = state;
+      // print(_notificationFromMain.toString() + "reporting from main.dart");
     });
   }
 
@@ -112,6 +113,18 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                       MaterialPageRoute(builder: (context) => DebugSensor()));
                 },
                 child: Text("SENSOR DEBUG"),
+                textColor: Colors.white,
+                color: Colors.blueAccent,
+              ),
+            ),
+            Container(
+              margin: EdgeInsets.all(25),
+              child: FlatButton(
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => NoiseDetect()));
+                },
+                child: Text("Audio Debug"),
                 textColor: Colors.white,
                 color: Colors.blueAccent,
               ),

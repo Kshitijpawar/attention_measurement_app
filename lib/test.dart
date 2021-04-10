@@ -1,3 +1,4 @@
+import 'package:environment_sensors/environment_sensors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +7,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:mainapp/detector_painters.dart';
+// import 'package:mainapp/mynoise.dart';
 import 'package:mainapp/utils.dart';
 
 import 'package:camera/camera.dart';
@@ -42,7 +44,21 @@ init() {
   FLog.applyConfigurations(config);
 }
 
-class _TestState extends State<Test> {
+class _TestState extends State<Test> with WidgetsBindingObserver {
+  //APP STATUS
+  AppLifecycleState _notificationTest;
+  // String notificationMain;
+  // _TestState(this.notificationMain);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // print(state.toString());
+    setState(() {
+      _notificationTest = state;
+      print(_notificationTest.toString() + "inside test.dart");
+    });
+  }
+
+  //APP STATUS
   // final PermissionGroup _permissionGroup = PermissionGroup.storage;
   //----------------FACE------------------------------------
   CameraController _camera;
@@ -69,6 +85,9 @@ class _TestState extends State<Test> {
   List<double> _gyroscopeValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
+  bool _isLightAvailable = false;
+  double _lightVal;
+  final envSensors = EnvironmentSensors();
 //-----------SENSORS----------------------------------------------------------------------
 
   Future loadModel() async {
@@ -122,10 +141,15 @@ class _TestState extends State<Test> {
         detect(image, _getDetectionMethod(), rotation, _baseStopwatch).then(
           (dynamic result) async {
             if (result.length == 0) {
-              if (_baseStopwatch.elapsed.inMicroseconds <= 4000000) {
+              if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
                 _faceFound = false;
-                print("No Person found in frame");
+                // print("No Person found in frame in if");
+                print(_baseStopwatch.elapsed.inSeconds);
+                printNoFace();
+                printLightVal();
+                printSensorVal();
               }
+              // print("No Person found in frame");
             } else
               _faceFound = true;
             Face _face;
@@ -152,9 +176,20 @@ class _TestState extends State<Test> {
               }
               finalResult.add(res + attention, _face);
             }
+            if (result.length > 0 &&
+                _baseStopwatch.elapsed.inMicroseconds <= 30000000) {
+              print("INSIDE PRINTFACE FOUND");
+              FLog.logThis(
+                className: "FromTest",
+                methodName: "printFaceFound",
+                text: "number of faces " +
+                    result.length.toString() +
+                    finalResult.keys.toString(),
+                type: LogLevel.INFO,
+                dataLogType: DataLogType.DEVICE.toString(),
+              );
+            }
             setState(() {
-
-              // _scanResults = finalResult + " " + _attentionResults;
               _scanResults = finalResult;
             });
 
@@ -204,13 +239,13 @@ class _TestState extends State<Test> {
   }
 
   bool _timeInterval() {
-    if (_baseStopwatch.elapsed.inMicroseconds <= 4000000) {
+    if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
       // print(_baseStopwatch.elapsed.inSeconds.toString() + "in active");
       return true;
-    } else if (_baseStopwatch.elapsed.inMicroseconds < 10000000) {
+    } else if (_baseStopwatch.elapsed.inMicroseconds < 40000000) {
       // print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
       return false;
-    } else if (_baseStopwatch.elapsed.inMicroseconds > 10000000) {
+    } else if (_baseStopwatch.elapsed.inMicroseconds > 40000000) {
       print(_baseStopwatch.elapsed.inSeconds.toString() + "cyclecomplete");
       _baseStopwatch.reset();
       return true;
@@ -240,9 +275,9 @@ class _TestState extends State<Test> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
+    // print(widget.notificationMain.toString() + "reporting from test.dart");
     final List<String> accelerometer =
         _accelerometerValues?.map((double v) => v.toStringAsFixed(3))?.toList();
     final List<String> gyroscope =
@@ -256,66 +291,6 @@ class _TestState extends State<Test> {
         title: new Text("Test"),
       ),
       body: _buildImage(),
-      //   body: _buildImage(), Column(
-      //     children: [
-      //       Padding(
-      //         child: Row(
-      //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //           children: <Widget>[
-      //             Text('Accelerometer: $accelerometer'),
-      //           ],
-      //         ),
-      //         padding: const EdgeInsets.all(16.0),
-      //       ),
-      //       Padding(
-      //         child: Row(
-      //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //           children: <Widget>[
-      //             Text('UserAccelerometer: $userAccelerometer'),
-      //           ],
-      //         ),
-      //         padding: const EdgeInsets.all(16.0),
-      //       ),
-      //       Padding(
-      //         child: Row(
-      //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //           children: <Widget>[
-      //             Text('Gyroscope: $gyroscope'),
-      //           ],
-      //         ),
-      //         padding: const EdgeInsets.all(16.0),
-      //       ),
-      //     ],
-      //   ),
-      //   floatingActionButton: Column(
-      //     mainAxisAlignment: MainAxisAlignment.end,
-      //     children: [
-      //       FloatingActionButton(
-      //         onPressed: () {
-      //           FLog.logThis(
-      //             className: "HomePage",
-      //             methodName: "button_press",
-      //             text: "ButtonPressed",
-      //             type: LogLevel.INFO,
-      //             dataLogType: DataLogType.DEVICE.toString(),
-      //           );
-      //         },
-      //         backgroundColor: Colors.blue,
-      //         child: Icon(Icons.analytics_outlined),
-      //         heroTag: null,
-      //       ),
-      //       SizedBox(
-      //         height: 10,
-      //       ),
-      //       FloatingActionButton(
-      //         onPressed: () {
-      //         },
-      //         backgroundColor: Colors.blue,
-      //         child: Icon(Icons.ac_unit_outlined),
-      //         heroTag: null,
-      //       )
-      //     ],
-      //   ),
     );
   }
 
@@ -378,8 +353,24 @@ class _TestState extends State<Test> {
     return predRes;
   }
 
+  Future<void> initPlatformState() async {
+    bool lightAvailable;
+
+    lightAvailable = await envSensors.getSensorAvailable(SensorType.Light);
+
+    setState(() {
+      _isLightAvailable = lightAvailable;
+    });
+  }
+
+  //-----------------------------------dispose and init state----------------------------------------
   @override
   void dispose() {
+    FLog.exportLogs();
+    FLog.clearLogs();
+    _camera.dispose();
+    // FLog.clearLogs();
+
     for (StreamSubscription<dynamic> subscription in _streamSubscriptions) {
       subscription.cancel();
     }
@@ -393,11 +384,19 @@ class _TestState extends State<Test> {
   @override
   void initState() {
     super.initState();
+    initPlatformState();
+    FLog.clearLogs();
+
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
     init();
     // _initLogs();
+    _streamSubscriptions.add(envSensors.light.listen((double lightv) {
+      setState(() {
+        _lightVal = lightv;
+      });
+    }));
     _streamSubscriptions
         .add(accelerometerEvents.listen((AccelerometerEvent event) {
       setState(() {
@@ -416,4 +415,70 @@ class _TestState extends State<Test> {
       });
     }));
   }
+
+  //-----------------------------------dispose and init state----------------------------------------
+  //=========================ALL LOGGING FUNCTIONS===================================================
+  void printNoFace() {
+    FLog.logThis(
+      className: "FromTest",
+      methodName: "printNoFace",
+      text: "NO PERSON IN FRAME FLOG",
+      type: LogLevel.INFO,
+      dataLogType: DataLogType.DEVICE.toString(),
+    );
+  }
+
+  void printLightVal() {
+    String _lightLog;
+    if (_lightVal < 15) {
+      _lightLog = "Lowlight Environment";
+    } else {
+      _lightLog = "BrightLight Environment";
+    }
+    FLog.logThis(
+      className: "FromTest",
+      methodName: "printLightVal",
+      text: _lightLog,
+      type: LogLevel.INFO,
+      dataLogType: DataLogType.DEVICE.toString(),
+    );
+  }
+
+  void printSensorVal() {
+    String _resultFromSensor;
+    if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
+        _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
+        _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
+        _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
+        _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
+        _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
+      _resultFromSensor = "USER INACTIVE(Sensor)";
+    } else {
+      _resultFromSensor = "USER ACTIVE(Sensor)";
+    }
+    FLog.logThis(
+      className: "FromTest",
+      methodName: "printFaceFound",
+      text: _resultFromSensor,
+      type: LogLevel.INFO,
+      dataLogType: DataLogType.DEVICE.toString(),
+    );
+  }
+
+  void printFaceFound(int noOfFaces, dynamic finalResult) {
+    List<String> allFaces;
+    for (String facelabel in finalResult.keys) {
+      allFaces.add(facelabel);
+    }
+    print("INSIDE PRINTFACE FOUND");
+    FLog.logThis(
+      className: "FromTest",
+      methodName: "printFaceFound",
+      text: noOfFaces.toString() + allFaces.toString(),
+      type: LogLevel.INFO,
+      dataLogType: DataLogType.DEVICE.toString(),
+    );
+  }
+  //=========================ALL LOGGING FUNCTIONS===================================================
+
 }

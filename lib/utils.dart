@@ -51,7 +51,7 @@ Future<dynamic> detect(
       ),
     );
   }
-  if (baseTime.elapsed.inMicroseconds > 4000000) return [];
+  if (baseTime.elapsed.inMicroseconds > 30000000) return [];
   return handleDetection(
     FirebaseVisionImage.fromBytes(
       image.planes[0].bytes,
