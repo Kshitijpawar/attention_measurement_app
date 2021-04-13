@@ -11,7 +11,7 @@ import 'package:mainapp/detector_painters.dart';
 import 'package:mainapp/utils.dart';
 
 import 'package:camera/camera.dart';
-import 'package:f_logs/f_logs.dart';
+// import 'package:f_logs/f_logs.dart';
 import 'package:quiver/collection.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:path_provider/path_provider.dart';
@@ -19,32 +19,47 @@ import 'package:sensors/sensors.dart';
 import 'package:tflite_flutter/tflite_flutter.dart' as tfl;
 import 'package:image/image.dart' as imglib;
 
+import 'logclass.dart';
+
 class Test extends StatefulWidget {
+  String deviceID, houseID;
+  Test({Key key, this.deviceID, this.houseID}) : super(key: key);
   @override
-  _TestState createState() => _TestState();
-}
-
-init() {
-  LogsConfig config = FLog.getDefaultConfigurations()
-    ..isDevelopmentDebuggingEnabled = true
-    ..timestampFormat = TimestampFormat.TIME_FORMAT_FULL_3
-    ..formatType = FormatType.FORMAT_CUSTOM
-    ..fieldOrderFormatCustom = [
-      FieldName.TIMESTAMP,
-      FieldName.LOG_LEVEL,
-      FieldName.CLASSNAME,
-      FieldName.METHOD_NAME,
-      FieldName.TEXT,
-      FieldName.EXCEPTION,
-      FieldName.STACKTRACE
-    ]
-    ..customOpeningDivider = "|"
-    ..customClosingDivider = "|";
-
-  FLog.applyConfigurations(config);
+  _TestState createState() => _TestState(deviceID, houseID);
 }
 
 class _TestState extends State<Test> with WidgetsBindingObserver {
+  //deviceID and houseID receiver
+  String deviceID, houseID;
+  //deviceID and houseID receiver
+
+  //Testing out timer stuff
+  Timer _testPageTimer;
+  // Timer.run()
+  _TestState(this.deviceID, this.houseID) {
+    _testPageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      // print("inside time value of ${_faceFoundInterval}");
+      // _faceFoundInterval++;
+      print("insider timer");
+      // setState(() {
+      if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
+        // print("insider timer");
+        // if (_scanResults.length == 0)
+        // _faceFoundInterval++;
+        // else {
+        // print("reset _faceFoundInterval");
+        // _faceFoundInterval = 0;
+        // }
+        // print(DateTime.now());
+
+        // print(_scanResults?.keys.toString());
+        doCustomLogging(_scanResults);
+      } else {
+        print("IN COOLDOWN mODE");
+      }
+    });
+  }
+  //Testing out timer stuff
   //APP STATUS
   AppLifecycleState _notificationTest;
   // String notificationMain;
@@ -61,12 +76,13 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   //APP STATUS
   // final PermissionGroup _permissionGroup = PermissionGroup.storage;
   //----------------FACE------------------------------------
+  int _faceFoundInterval = 0;
   CameraController _camera;
   dynamic _scanResults;
   var interpreter;
   CameraLensDirection _direction = CameraLensDirection.front;
-  Directory tempDir;
-  File jsonFile;
+  Directory tempDir, logDir;
+  File jsonFile, logJSONFile;
   dynamic data = {};
   bool _isDetecting = false;
   bool textFlag = false;
@@ -77,8 +93,9 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   double threshold = 1.0;
 
   //----------------FACE------------------------------------
-  //----------------TIMER VAR-----------------------------------
-  //----------------TIMER VAR-----------------------------------
+  //----------------LOGGIN BUFFER-----------------------------------
+  StringBuffer logBuffer = StringBuffer();
+  //----------------LOGGIN BUFFER-----------------------------------
   //-----------SENSORS----------------------------------------------------------------------
   List<double> _accelerometerValues;
   List<double> _userAccelerometerValues;
@@ -130,6 +147,13 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     jsonFile = new File(_embPath);
     if (jsonFile.existsSync()) data = json.decode(jsonFile.readAsStringSync());
 
+    //Initialize Log File
+    logDir = await getExternalStorageDirectory();
+    String _logPath = logDir.path +
+        '/${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
+    logJSONFile = File(_logPath);
+    //Initialize Log File
+
     _camera.startImageStream((CameraImage image) {
       if (_camera != null) {
         if (_isDetecting) return;
@@ -141,14 +165,12 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         detect(image, _getDetectionMethod(), rotation, _baseStopwatch).then(
           (dynamic result) async {
             if (result.length == 0) {
-              if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
-                _faceFound = false;
-                // print("No Person found in frame in if");
-                print(_baseStopwatch.elapsed.inSeconds);
-                printNoFace();
-                printLightVal();
-                printSensorVal();
-              }
+              _faceFound = false;
+              // if (_baseStopwatch.elapsed.inMicroseconds <= 30000000 &&
+              //     _baseStopwatch.elapsed.inSeconds % 3 == 0) {
+              //   print("b4 customLogging");
+              //   doCustomLogging();
+              // }
               // print("No Person found in frame");
             } else
               _faceFound = true;
@@ -168,27 +190,29 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
               res = _recog(croppedImage, _face);
               if (_face.headEulerAngleY.abs() < 10.0 &&
                   _face.headEulerAngleZ.abs() < 10.0) {
-                attention = " Attentive";
+                attention = ",Attentive";
                 textFlag = true;
               } else {
-                attention = " Distracted";
+                attention = ",Distracted";
                 textFlag = false;
               }
               finalResult.add(res + attention, _face);
             }
-            if (result.length > 0 &&
-                _baseStopwatch.elapsed.inMicroseconds <= 30000000) {
-              print("INSIDE PRINTFACE FOUND");
-              FLog.logThis(
-                className: "FromTest",
-                methodName: "printFaceFound",
-                text: "number of faces " +
-                    result.length.toString() +
-                    finalResult.keys.toString(),
-                type: LogLevel.INFO,
-                dataLogType: DataLogType.DEVICE.toString(),
-              );
-            }
+            // if (result.length > 0 &&
+            //     _baseStopwatch.elapsed.inMicroseconds <= 30000000 &&
+            //     _baseStopwatch.elapsed.inSeconds % 3 == 0) {
+            //   // print("INSIDE PRINTFACE FOUND");
+            //   doCustomLogging(finalResult);
+            //   // FLog.logThis(
+            //   //   className: "FromTest",
+            //   //   methodName: "printFaceFound",
+            //   //   text: "number of faces " +
+            //   //       result.length.toString() +
+            //   //       finalResult.keys.toString(),
+            //   //   type: LogLevel.INFO,
+            //   //   dataLogType: DataLogType.DEVICE.toString(),
+            //   // );
+            // }
             setState(() {
               _scanResults = finalResult;
             });
@@ -208,6 +232,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     final faceDetector = FirebaseVision.instance.faceDetector(
       FaceDetectorOptions(
         mode: FaceDetectorMode.accurate,
+        // enableTracking: true,
         // enableLandmarks: true,
         // enableContours: true,
         // enableClassification: true,
@@ -278,13 +303,13 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     // print(widget.notificationMain.toString() + "reporting from test.dart");
-    final List<String> accelerometer =
-        _accelerometerValues?.map((double v) => v.toStringAsFixed(3))?.toList();
-    final List<String> gyroscope =
-        _gyroscopeValues?.map((double v) => v.toStringAsFixed(3))?.toList();
-    final List<String> userAccelerometer = _userAccelerometerValues
-        ?.map((double v) => v.toStringAsFixed(3))
-        ?.toList();
+    // final List<String> accelerometer =
+    //     _accelerometerValues?.map((double v) => v.toStringAsFixed(3))?.toList();
+    // final List<String> gyroscope =
+    //     _gyroscopeValues?.map((double v) => v.toStringAsFixed(3))?.toList();
+    // final List<String> userAccelerometer = _userAccelerometerValues
+    //     ?.map((double v) => v.toStringAsFixed(3))
+    //     ?.toList();
 
     return Scaffold(
       appBar: new AppBar(
@@ -353,22 +378,19 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     return predRes;
   }
 
-  Future<void> initPlatformState() async {
-    bool lightAvailable;
-
-    lightAvailable = await envSensors.getSensorAvailable(SensorType.Light);
-
-    setState(() {
-      _isLightAvailable = lightAvailable;
-    });
-  }
-
   //-----------------------------------dispose and init state----------------------------------------
   @override
   void dispose() {
-    FLog.exportLogs();
-    FLog.clearLogs();
+    // FLog.exportLogs();
+    // FLog.clearLogs();
+    // _someTimer.cancel();
+    logJSONFile
+        .writeAsString(logBuffer.toString()); // write string buffer to a file
+    logBuffer.clear(); // clear the buffer
+    _testPageTimer.cancel();
+    // interpreter.close();
     _camera.dispose();
+
     // FLog.clearLogs();
 
     for (StreamSubscription<dynamic> subscription in _streamSubscriptions) {
@@ -376,7 +398,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     }
     print("exiting the test page");
     // interpreter.close();
-    print("released Interpreter");
+    // print("released Interpreter");
 
     super.dispose();
   }
@@ -384,14 +406,10 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-    FLog.clearLogs();
 
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
-    init();
-    // _initLogs();
     _streamSubscriptions.add(envSensors.light.listen((double lightv) {
       setState(() {
         _lightVal = lightv;
@@ -418,67 +436,110 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
 
   //-----------------------------------dispose and init state----------------------------------------
   //=========================ALL LOGGING FUNCTIONS===================================================
-  void printNoFace() {
-    FLog.logThis(
-      className: "FromTest",
-      methodName: "printNoFace",
-      text: "NO PERSON IN FRAME FLOG",
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-  }
-
-  void printLightVal() {
-    String _lightLog;
-    if (_lightVal < 15) {
-      _lightLog = "Lowlight Environment";
+  doCustomLogging([dynamic myScanResult]) {
+    String logPersonName;
+    String logPersonAttention;
+    if (myScanResult.length == 0) {
+      // print("NO FACE FOUND NOW INSIDE doCustomLogging");
+      // no one found in image so check light and then Sensors
+      if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
+          _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
+          _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
+          _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
+          _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
+          _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
+        logPersonAttention = "USER INACTIVE(Sensor) ";
+      } else {
+        logPersonAttention = "USER ACTIVE(Sensor)";
+      }
+      if (_lightVal <= 15) {
+        // lowlight env so calculate sensor data to find attention
+        logPersonName = "Low Light Environment";
+      } else if (_lightVal > 15) {
+        logPersonName = "NO Face found in frame";
+      }
+      LogClass _tempObj = LogClass(DateTime.now(), myScanResult.length,
+          logPersonName, logPersonAttention, deviceID, houseID);
+      print(_tempObj.toString());
+      logBuffer.write(_tempObj.toString());
     } else {
-      _lightLog = "BrightLight Environment";
+      // print("TODO FOR WHEN FACE IS FOUND");
+      List<dynamic> getNames =
+          myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
+      // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
+      LogClass _tempObj = LogClass(DateTime.now(), myScanResult.length,
+          getNames.toString(), myScanResult.keys.toString(), deviceID, houseID);
+      print(_tempObj.toString());
+      logBuffer.write(_tempObj.toString());
+      // for (var ele in finalResult) {}
     }
-    FLog.logThis(
-      className: "FromTest",
-      methodName: "printLightVal",
-      text: _lightLog,
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
   }
 
-  void printSensorVal() {
-    String _resultFromSensor;
-    if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
-        _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
-        _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
-        _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
-        _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
-        _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
-      _resultFromSensor = "USER INACTIVE(Sensor)";
-    } else {
-      _resultFromSensor = "USER ACTIVE(Sensor)";
-    }
-    FLog.logThis(
-      className: "FromTest",
-      methodName: "printFaceFound",
-      text: _resultFromSensor,
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-  }
+  // String printNoFace() {
+  //   // FLog.logThis(
+  //   //   className: "FromTest",
+  //   //   methodName: "printNoFace",
+  //   //   text: "NO PERSON IN FRAME FLOG",
+  //   //   type: LogLevel.INFO,
+  //   //   dataLogType: DataLogType.DEVICE.toString(),
+  //   // );
+  //   if (_lightVal < 15) {
+  //     return "Lowlight Environment";
+  //   }
+  //   return "No Person in Frame";
+  // }
 
-  void printFaceFound(int noOfFaces, dynamic finalResult) {
-    List<String> allFaces;
-    for (String facelabel in finalResult.keys) {
-      allFaces.add(facelabel);
-    }
-    print("INSIDE PRINTFACE FOUND");
-    FLog.logThis(
-      className: "FromTest",
-      methodName: "printFaceFound",
-      text: noOfFaces.toString() + allFaces.toString(),
-      type: LogLevel.INFO,
-      dataLogType: DataLogType.DEVICE.toString(),
-    );
-  }
+  // void printLightVal() {
+  //   String _lightLog;
+  //   if (_lightVal < 15) {
+  //     _lightLog = "Lowlight Environment";
+  //   } else {
+  //     _lightLog = "BrightLight Environment";
+  //   }
+  //   // FLog.logThis(
+  //   //   className: "FromTest",
+  //   //   methodName: "printLightVal",
+  //   //   text: _lightLog,
+  //   //   type: LogLevel.INFO,
+  //   //   dataLogType: DataLogType.DEVICE.toString(),
+  //   // );
+  // }
+
+  // void printSensorVal() {
+  //   String _resultFromSensor;
+  //   if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
+  //       _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
+  //       _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
+  //       _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
+  //       _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
+  //       _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
+  //     _resultFromSensor = "USER INACTIVE(Sensor)";
+  //   } else {
+  //     _resultFromSensor = "USER ACTIVE(Sensor)";
+  //   }
+  //   FLog.logThis(
+  //     className: "FromTest",
+  //     methodName: "printFaceFound",
+  //     text: _resultFromSensor,
+  //     type: LogLevel.INFO,
+  //     dataLogType: DataLogType.DEVICE.toString(),
+  //   );
+  // }
+
+  // void printFaceFound(int noOfFaces, dynamic finalResult) {
+  //   List<String> allFaces;
+  //   for (String facelabel in finalResult.keys) {
+  //     allFaces.add(facelabel);
+  //   }
+  //   print("INSIDE PRINTFACE FOUND");
+  //   FLog.logThis(
+  //     className: "FromTest",
+  //     methodName: "printFaceFound",
+  //     text: noOfFaces.toString() + allFaces.toString(),
+  //     type: LogLevel.INFO,
+  //     dataLogType: DataLogType.DEVICE.toString(),
+  //   );
+  // }
   //=========================ALL LOGGING FUNCTIONS===================================================
 
 }

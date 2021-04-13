@@ -33,6 +33,18 @@ class _RegisterState extends State<Register> {
   List e1;
   bool _faceFound = false;
   final TextEditingController _name = new TextEditingController();
+  //controller for device and house id input
+
+  String _deviceID, _houseID;
+  final TextEditingController _deviceIDController = new TextEditingController();
+  final TextEditingController _houseIDController = new TextEditingController();
+
+  Future<bool> _pressBack() {
+    // String textToSendBack = textFieldController.text;
+    Navigator.pop(context, [_deviceID, _houseID]);
+  }
+
+  //controller for device and house id input
   @override
   void initState() {
     super.initState();
@@ -43,6 +55,7 @@ class _RegisterState extends State<Register> {
 
   @override
   void dispose() {
+    // interpreter.close();
     _camera.dispose();
 
     super.dispose();
@@ -116,11 +129,10 @@ class _RegisterState extends State<Register> {
               croppedImage = imglib.copyResizeCropSquare(croppedImage, 112);
               // int startTime = new DateTime.now().millisecondsSinceEpoch;
               res = _recog(croppedImage, _face);
-              
+
               finalResult.add(res, _face);
             }
             setState(() {
-
               // _scanResults = finalResult + " " + _attentionResults;
               _scanResults = finalResult;
             });
@@ -187,8 +199,6 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  
-
   void _toggleCameraDirection() async {
     if (_direction == CameraLensDirection.back) {
       _direction = CameraLensDirection.front;
@@ -207,54 +217,65 @@ class _RegisterState extends State<Register> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: new AppBar(
-        title: new Text("Register"),
-        actions: <Widget>[
-          PopupMenuButton<Choice>(
-            onSelected: (Choice result) {
-              if (result == Choice.delete)
-                _resetFile();
-              else
-                _viewLabels();
+    return WillPopScope(
+      onWillPop: _pressBack,
+      child: Scaffold(
+        appBar: new AppBar(
+          title: new Text("Register"),
+          actions: <Widget>[
+            PopupMenuButton<Choice>(
+              onSelected: (Choice result) {
+                if (result == Choice.delete)
+                  _resetFile();
+                else
+                  _viewLabels();
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<Choice>>[
+                const PopupMenuItem<Choice>(
+                  child: Text('View Saved Faces'),
+                  value: Choice.view,
+                ),
+                const PopupMenuItem<Choice>(
+                  child: Text('Remove all faces'),
+                  value: Choice.delete,
+                )
+              ],
+            ),
+          ],
+        ),
+        // body: _buildImage(_baseStopwatch.elapsed.inSeconds),
+        body: _buildImage(),
+        // body: _timeInterval(),
+        floatingActionButton:
+            Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+          FloatingActionButton(
+            backgroundColor: (_faceFound) ? Colors.blue : Colors.blueGrey,
+            child: Icon(Icons.add),
+            onPressed: () {
+              if (_faceFound) _addLabel();
             },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<Choice>>[
-              const PopupMenuItem<Choice>(
-                child: Text('View Saved Faces'),
-                value: Choice.view,
-              ),
-              const PopupMenuItem<Choice>(
-                child: Text('Remove all faces'),
-                value: Choice.delete,
-              )
-            ],
+            heroTag: null,
           ),
-        ],
+          SizedBox(
+            height: 10,
+          ),
+          FloatingActionButton(
+            onPressed: _toggleCameraDirection,
+            heroTag: null,
+            child: _direction == CameraLensDirection.back
+                ? const Icon(Icons.camera_front)
+                : const Icon(Icons.camera_rear),
+          ),
+          SizedBox(
+            height: 10,
+          ),
+          FloatingActionButton(
+            onPressed: _addID,
+            heroTag: null,
+            child: Icon(Icons.device_unknown),
+          ),
+        ]),
       ),
-      // body: _buildImage(_baseStopwatch.elapsed.inSeconds),
-      body: _buildImage(),
-      // body: _timeInterval(),
-      floatingActionButton:
-          Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-        FloatingActionButton(
-          backgroundColor: (_faceFound) ? Colors.blue : Colors.blueGrey,
-          child: Icon(Icons.add),
-          onPressed: () {
-            if (_faceFound) _addLabel();
-          },
-          heroTag: null,
-        ),
-        SizedBox(
-          height: 10,
-        ),
-        FloatingActionButton(
-          onPressed: _toggleCameraDirection,
-          heroTag: null,
-          child: _direction == CameraLensDirection.back
-              ? const Icon(Icons.camera_front)
-              : const Icon(Icons.camera_rear),
-        ),
-      ]),
     );
   }
 
@@ -412,6 +433,63 @@ class _RegisterState extends State<Register> {
         });
   }
 
+  //Button for DEVICE_ID and HOUSEHOLD_ID input
+  void _addID() {
+    setState(() {
+      _camera = null;
+    });
+    print("Adding DEVICE_ID and HOUSEHOLD_ID");
+    var alert = new AlertDialog(
+      title: new Text("Add ID"),
+      content: new Row(
+        children: <Widget>[
+          new Expanded(
+            child: new TextField(
+              controller: _deviceIDController,
+              autofocus: true,
+              decoration: new InputDecoration(
+                  labelText: "Device ID",
+                  icon: new Icon(Icons.perm_device_info)),
+            ),
+          ),
+          Expanded(
+            child: new TextField(
+              controller: _houseIDController,
+              autofocus: true,
+              decoration: new InputDecoration(
+                  labelText: "Household ID", icon: new Icon(Icons.house)),
+            ),
+          )
+        ],
+      ),
+      actions: <Widget>[
+        new FlatButton(
+            child: Text("Save"),
+            onPressed: () {
+              _deviceID = _deviceIDController.text;
+              _houseID = _houseIDController.text;
+              _deviceIDController.clear();
+              _houseIDController.clear();
+              _initializeCamera();
+              Navigator.pop(context);
+            }),
+        new FlatButton(
+          child: Text("Cancel"),
+          onPressed: () {
+            _initializeCamera();
+            Navigator.pop(context);
+          },
+        )
+      ],
+    );
+    showDialog(
+        context: context,
+        builder: (context) {
+          return alert;
+        });
+  }
+
+  //Button for DEVICE_ID and HOUSEHOLD_ID input
   void _handle(String text) {
     data[text] = e1;
     jsonFile.writeAsStringSync(json.encode(data));
