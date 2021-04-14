@@ -109,7 +109,7 @@ class _RegisterState extends State<Register> {
         // String attention;
         // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
-        detect(image, _getDetectionMethod(), rotation, null).then(
+        detect(image, _getDetectionMethod(), rotation,).then(
           (dynamic result) async {
             if (result.length == 0)
               _faceFound = false;

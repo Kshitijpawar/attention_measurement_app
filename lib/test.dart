@@ -1,4 +1,5 @@
 import 'package:environment_sensors/environment_sensors.dart';
+import 'package:phone_state_i/phone_state_i.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -32,6 +33,9 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   //deviceID and houseID receiver
   String deviceID, houseID;
   //deviceID and houseID receiver
+  //Phone event boolean connected or not
+  bool _isPhone = false;
+  //Phone event boolean connected or not
 
   //Testing out timer stuff
   Timer _testPageTimer;
@@ -40,7 +44,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     _testPageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       // print("inside time value of ${_faceFoundInterval}");
       // _faceFoundInterval++;
-      print("insider timer");
+      // print("insider timer");
       // setState(() {
       if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
         // print("insider timer");
@@ -69,7 +73,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     // print(state.toString());
     setState(() {
       _notificationTest = state;
-      print(_notificationTest.toString() + "inside test.dart");
+      // print(_notificationTest.toString() + "inside test.dart");
     });
   }
 
@@ -82,11 +86,12 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   var interpreter;
   CameraLensDirection _direction = CameraLensDirection.front;
   Directory tempDir, logDir;
-  File jsonFile, logJSONFile;
+  File jsonFile, logOfficialJSONFile, logUnofficialJSONFile;
   dynamic data = {};
   bool _isDetecting = false;
   bool textFlag = false;
   var _baseStopwatch = Stopwatch();
+  var _secondaryStopwatch = Stopwatch();
   bool _faceFound =
       false; //use this variable when if face is not detected....//
   List e1;
@@ -94,7 +99,8 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
 
   //----------------FACE------------------------------------
   //----------------LOGGIN BUFFER-----------------------------------
-  StringBuffer logBuffer = StringBuffer();
+  StringBuffer logOfficialBuffer = StringBuffer();
+  StringBuffer logUnofficialBuffer = StringBuffer();
   //----------------LOGGIN BUFFER-----------------------------------
   //-----------SENSORS----------------------------------------------------------------------
   List<double> _accelerometerValues;
@@ -130,6 +136,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   void _initializeCamera() async {
     await loadModel();
     _baseStopwatch.start();
+
     CameraDescription description = await getCamera(_direction);
 
     ImageRotation rotation = rotationIntToImageRotation(
@@ -147,12 +154,19 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     jsonFile = new File(_embPath);
     if (jsonFile.existsSync()) data = json.decode(jsonFile.readAsStringSync());
 
-    //Initialize Log File
+    //Initialize Official Log File
     logDir = await getExternalStorageDirectory();
-    String _logPath = logDir.path +
-        '/${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
-    logJSONFile = File(_logPath);
-    //Initialize Log File
+    String _logOfficialPath = logDir.path +
+        '/Official_${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
+    logOfficialJSONFile = File(_logOfficialPath);
+    //Initialize Official Log File
+
+    //Initialize UnOfficial Log File
+    logDir = await getExternalStorageDirectory();
+    String _logUnofficialPath = logDir.path +
+        '/Unoffcial_${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
+    logUnofficialJSONFile = File(_logUnofficialPath);
+    //Initialize Official Log File
 
     _camera.startImageStream((CameraImage image) {
       if (_camera != null) {
@@ -162,7 +176,8 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         String attention;
         // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
-        detect(image, _getDetectionMethod(), rotation, _baseStopwatch).then(
+        detect(image, _getDetectionMethod(), rotation, _baseStopwatch, _isPhone)
+            .then(
           (dynamic result) async {
             if (result.length == 0) {
               _faceFound = false;
@@ -265,8 +280,10 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
 
   bool _timeInterval() {
     if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
-      // print(_baseStopwatch.elapsed.inSeconds.toString() + "in active");
-      return true;
+      if (_isPhone)
+        return false;
+      else
+        return true;
     } else if (_baseStopwatch.elapsed.inMicroseconds < 40000000) {
       // print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
       return false;
@@ -384,9 +401,12 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     // FLog.exportLogs();
     // FLog.clearLogs();
     // _someTimer.cancel();
-    logJSONFile
-        .writeAsString(logBuffer.toString()); // write string buffer to a file
-    logBuffer.clear(); // clear the buffer
+    logOfficialJSONFile.writeAsString(
+        logOfficialBuffer.toString()); // write string buffer to a file
+    logOfficialBuffer.clear(); // clear the buffer
+    logUnofficialJSONFile.writeAsString(
+        logUnofficialBuffer.toString()); // write string buffer to a file
+    logUnofficialBuffer.clear(); // clear the buffer
     _testPageTimer.cancel();
     // interpreter.close();
     _camera.dispose();
@@ -410,6 +430,29 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
+    //added phone call listener
+    _streamSubscriptions
+        .add(phoneStateCallEvent.listen((PhoneStateCallEvent event) {
+      print('Call is Incoming or Connected' + event.stateC);
+      if (event.stateC == "true") {
+        LogClass callObject = LogClass(
+            DateTime.now(),
+            _scanResults.length,
+            _scanResults.keys.map((ele) => ele.split(",")[0]).toString(),
+            "Call Detected",
+            deviceID,
+            houseID);
+        print(callObject.toString());
+        logOfficialBuffer.write(callObject);
+        logUnofficialBuffer.write(callObject);
+      }
+      setState(() {
+        // if (event.stateC == "true")
+        _isPhone = event.stateC.toLowerCase() == "true";
+        // if (_isPhone) print("hihihi");
+      });
+    }));
+    //added phone call listener
     _streamSubscriptions.add(envSensors.light.listen((double lightv) {
       setState(() {
         _lightVal = lightv;
@@ -458,19 +501,31 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
       } else if (_lightVal > 15) {
         logPersonName = "NO Face found in frame";
       }
-      LogClass _tempObj = LogClass(DateTime.now(), myScanResult.length,
+      LogClass _tempOfficialObj = LogClass(DateTime.now(), myScanResult.length,
           logPersonName, logPersonAttention, deviceID, houseID);
-      print(_tempObj.toString());
-      logBuffer.write(_tempObj.toString());
+      String gyroVal = "Gyro[X, Y, Z]: " + _gyroscopeValues.toString();
+      String accVal =
+          "User Acc[X, Y, Z]:" + _userAccelerometerValues.toString();
+      LogClass _tempUnofficialObj = LogClass(
+          DateTime.now(),
+          myScanResult.length,
+          logPersonName + " LightVal: " + _lightVal.toString(),
+          logPersonAttention + gyroVal + accVal,
+          deviceID,
+          houseID);
+      print(_tempOfficialObj.toString());
+      logOfficialBuffer.write(_tempOfficialObj.toString());
+      logUnofficialBuffer.write(_tempUnofficialObj.toString());
     } else {
       // print("TODO FOR WHEN FACE IS FOUND");
       List<dynamic> getNames =
           myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
       // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
-      LogClass _tempObj = LogClass(DateTime.now(), myScanResult.length,
+      LogClass _tempOfficialObj = LogClass(DateTime.now(), myScanResult.length,
           getNames.toString(), myScanResult.keys.toString(), deviceID, houseID);
-      print(_tempObj.toString());
-      logBuffer.write(_tempObj.toString());
+      print(_tempOfficialObj.toString());
+      logOfficialBuffer.write(_tempOfficialObj.toString());
+      // logUnofficialBuffer.write(_tempOfficialObj.toString());
       // for (var ele in finalResult) {}
     }
   }

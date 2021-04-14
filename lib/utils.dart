@@ -41,7 +41,8 @@ Future<dynamic> detect(
   CameraImage image,
   HandleDetection handleDetection,
   ImageRotation rotation,
-  Stopwatch baseTime,
+  [Stopwatch baseTime,
+  bool _isPhone,]
 ) async {
   if (baseTime == null) {
     return handleDetection(
@@ -51,7 +52,7 @@ Future<dynamic> detect(
       ),
     );
   }
-  if (baseTime.elapsed.inMicroseconds > 30000000) return [];
+  if (baseTime.elapsed.inMicroseconds > 30000000 || _isPhone) return [];
   return handleDetection(
     FirebaseVisionImage.fromBytes(
       image.planes[0].bytes,
