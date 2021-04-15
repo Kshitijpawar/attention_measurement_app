@@ -13,6 +13,7 @@ import 'package:mainapp/utils.dart';
 
 import 'package:camera/camera.dart';
 // import 'package:f_logs/f_logs.dart';
+import 'package:usage_stats/usage_stats.dart';
 import 'package:quiver/collection.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,14 +25,17 @@ import 'logclass.dart';
 
 class Test extends StatefulWidget {
   String deviceID, houseID;
-  Test({Key key, this.deviceID, this.houseID}) : super(key: key);
+  DateTime dateFromMain;
+  Test({Key key, this.deviceID, this.houseID, this.dateFromMain})
+      : super(key: key);
   @override
-  _TestState createState() => _TestState(deviceID, houseID);
+  _TestState createState() => _TestState(deviceID, houseID, dateFromMain);
 }
 
 class _TestState extends State<Test> with WidgetsBindingObserver {
   //deviceID and houseID receiver
   String deviceID, houseID;
+  DateTime dateFromMain;
   //deviceID and houseID receiver
   //Phone event boolean connected or not
   bool _isPhone = false;
@@ -40,8 +44,9 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   //Testing out timer stuff
   Timer _testPageTimer;
   // Timer.run()
-  _TestState(this.deviceID, this.houseID) {
+  _TestState(this.deviceID, this.houseID, this.dateFromMain) {
     _testPageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      initUsage();
       // print("inside time value of ${_faceFoundInterval}");
       // _faceFoundInterval++;
       // print("insider timer");
@@ -59,6 +64,14 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         // print(_scanResults?.keys.toString());
         doCustomLogging(_scanResults);
       } else {
+        print(_baseStopwatch.elapsed.inSeconds);
+        if (_baseStopwatch.elapsed.inMicroseconds > 42000000) {
+          
+          setState(() {
+            _baseStopwatch.reset();
+            print("inside setstate");
+          });
+        }
         print("IN COOLDOWN mODE");
       }
     });
@@ -112,7 +125,27 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   double _lightVal;
   final envSensors = EnvironmentSensors();
 //-----------SENSORS----------------------------------------------------------------------
+//app use
+  List<EventUsageInfo> events;
 
+  Future<void> initUsage() async {
+    UsageStats.grantUsagePermission();
+    DateTime endDate = new DateTime.now();
+    // DateTime startDate = DateTime(dateFromMain);
+    List<EventUsageInfo> queryEvents =
+        await UsageStats.queryEvents(dateFromMain, endDate);
+
+    this.setState(() {
+      // print("printing used apps list");
+      // if (events != null)
+      // print(events.map((ele) => ele.packageName).toList());
+      // else
+      // print("app list still empty");
+      events = queryEvents.reversed.toList();
+    });
+  }
+
+//app use
   Future loadModel() async {
     try {
       final gpuDelegateV2 = tfl.GpuDelegateV2(
@@ -285,7 +318,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
       else
         return true;
     } else if (_baseStopwatch.elapsed.inMicroseconds < 40000000) {
-      // print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
+      print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
       return false;
     } else if (_baseStopwatch.elapsed.inMicroseconds > 40000000) {
       print(_baseStopwatch.elapsed.inSeconds.toString() + "cyclecomplete");
@@ -430,6 +463,9 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
+    //app use
+    initUsage();
+    //app use
     //added phone call listener
     _streamSubscriptions
         .add(phoneStateCallEvent.listen((PhoneStateCallEvent event) {
@@ -482,9 +518,10 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   doCustomLogging([dynamic myScanResult]) {
     String logPersonName;
     String logPersonAttention;
+    List<String> _appPackageNames;
+    List<String> _restrictedApps = ["zoom", "instagram", "whatsapp"];
+    List<String> _foundAppResult = [];
     if (myScanResult.length == 0) {
-      // print("NO FACE FOUND NOW INSIDE doCustomLogging");
-      // no one found in image so check light and then Sensors
       if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
           _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
           _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
@@ -501,100 +538,117 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
       } else if (_lightVal > 15) {
         logPersonName = "NO Face found in frame";
       }
-      LogClass _tempOfficialObj = LogClass(DateTime.now(), myScanResult.length,
-          logPersonName, logPersonAttention, deviceID, houseID);
-      String gyroVal = "Gyro[X, Y, Z]: " + _gyroscopeValues.toString();
-      String accVal =
-          "User Acc[X, Y, Z]:" + _userAccelerometerValues.toString();
-      LogClass _tempUnofficialObj = LogClass(
-          DateTime.now(),
-          myScanResult.length,
-          logPersonName + " LightVal: " + _lightVal.toString(),
-          logPersonAttention + gyroVal + accVal,
-          deviceID,
-          houseID);
-      print(_tempOfficialObj.toString());
-      logOfficialBuffer.write(_tempOfficialObj.toString());
-      logUnofficialBuffer.write(_tempUnofficialObj.toString());
+      //if app usage is found
+      if (events.length != 0) {
+        dateFromMain = DateTime.now();
+        //check if restricted apps present in app usage list
+        _appPackageNames = events.map((el) => el.packageName).toSet().toList();
+        _appPackageNames.forEach((pName) {
+          _restrictedApps.forEach((aName) {
+            if (pName.contains(aName)) {
+              _foundAppResult.add(aName);
+            }
+          });
+        });
+        // _foundAppResult = _foundAppResult.toSet().toList();
+        //reset mainDate for latest app usage and clear _appPackageNames and events
+        _appPackageNames.clear();
+        events.clear();
+        //log person attention as inattentive and using apps
+        if (_foundAppResult.isNotEmpty)
+          logPersonAttention =
+              "Inattentive Using Apps: " + _foundAppResult.toString();
+        //now log this
+        LogClass _tempOfficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            logPersonName,
+            logPersonAttention,
+            deviceID,
+            houseID);
+        LogClass _tempUnofficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            logPersonName + " LightVal: " + _lightVal.toString(),
+            logPersonAttention,
+            deviceID,
+            houseID);
+        print(_tempOfficialObj.toString());
+        logOfficialBuffer.write(_tempOfficialObj.toString());
+        logUnofficialBuffer.write(_tempUnofficialObj.toString());
+      } else {
+        LogClass _tempOfficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            logPersonName,
+            logPersonAttention,
+            deviceID,
+            houseID);
+        String gyroVal = "Gyro[X, Y, Z]: " + _gyroscopeValues.toString();
+        String accVal =
+            "User Acc[X, Y, Z]:" + _userAccelerometerValues.toString();
+        LogClass _tempUnofficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            logPersonName + " LightVal: " + _lightVal.toString(),
+            logPersonAttention + gyroVal + accVal,
+            deviceID,
+            houseID);
+        print(_tempOfficialObj.toString());
+        logOfficialBuffer.write(_tempOfficialObj.toString());
+        logUnofficialBuffer.write(_tempUnofficialObj.toString());
+      }
     } else {
-      // print("TODO FOR WHEN FACE IS FOUND");
-      List<dynamic> getNames =
-          myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
-      // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
-      LogClass _tempOfficialObj = LogClass(DateTime.now(), myScanResult.length,
-          getNames.toString(), myScanResult.keys.toString(), deviceID, houseID);
-      print(_tempOfficialObj.toString());
-      logOfficialBuffer.write(_tempOfficialObj.toString());
-      // logUnofficialBuffer.write(_tempOfficialObj.toString());
-      // for (var ele in finalResult) {}
+      //if app usage is found
+      if (events.length != 0) {
+        dateFromMain = DateTime.now();
+        //check if restricted apps present in app usage list
+        _appPackageNames = events.map((el) => el.packageName).toSet().toList();
+        _appPackageNames.forEach((pName) {
+          _restrictedApps.forEach((aName) {
+            if (pName.contains(aName)) {
+              _foundAppResult.add(aName);
+            }
+          });
+        });
+        // _foundAppResult = _foundAppResult.toSet().toList();
+        //reset mainDate for latest app usage and clear _appPackageNames and events
+        _appPackageNames.clear();
+        events.clear();
+        //log person attention as inattentive and using apps
+        if (_foundAppResult.isNotEmpty)
+          logPersonAttention =
+              "Inattentive Using Apps: " + _foundAppResult.toString();
+        //now log this
+        List<dynamic> getNames =
+            myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
+        // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
+        //
+        LogClass _tempOfficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            getNames.toString(),
+            logPersonAttention,
+            deviceID,
+            houseID);
+        print(_tempOfficialObj.toString());
+        logOfficialBuffer.write(_tempOfficialObj.toString());
+      } else {
+        //if app usage is found
+        // print("TODO FOR WHEN FACE IS FOUND");
+        List<dynamic> getNames =
+            myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
+        // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
+        LogClass _tempOfficialObj = LogClass(
+            DateTime.now(),
+            myScanResult.length,
+            getNames.toString(),
+            myScanResult.keys.toString(),
+            deviceID,
+            houseID);
+        print(_tempOfficialObj.toString());
+        logOfficialBuffer.write(_tempOfficialObj.toString());
+      }
     }
   }
-
-  // String printNoFace() {
-  //   // FLog.logThis(
-  //   //   className: "FromTest",
-  //   //   methodName: "printNoFace",
-  //   //   text: "NO PERSON IN FRAME FLOG",
-  //   //   type: LogLevel.INFO,
-  //   //   dataLogType: DataLogType.DEVICE.toString(),
-  //   // );
-  //   if (_lightVal < 15) {
-  //     return "Lowlight Environment";
-  //   }
-  //   return "No Person in Frame";
-  // }
-
-  // void printLightVal() {
-  //   String _lightLog;
-  //   if (_lightVal < 15) {
-  //     _lightLog = "Lowlight Environment";
-  //   } else {
-  //     _lightLog = "BrightLight Environment";
-  //   }
-  //   // FLog.logThis(
-  //   //   className: "FromTest",
-  //   //   methodName: "printLightVal",
-  //   //   text: _lightLog,
-  //   //   type: LogLevel.INFO,
-  //   //   dataLogType: DataLogType.DEVICE.toString(),
-  //   // );
-  // }
-
-  // void printSensorVal() {
-  //   String _resultFromSensor;
-  //   if (_userAccelerometerValues[0].abs().toStringAsFixed(1) == "0.0" &&
-  //       _userAccelerometerValues[1].abs().toStringAsFixed(1) == "0.0" &&
-  //       _userAccelerometerValues[2].abs().toStringAsFixed(1) == "0.0" &&
-  //       _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
-  //       _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
-  //       _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
-  //     _resultFromSensor = "USER INACTIVE(Sensor)";
-  //   } else {
-  //     _resultFromSensor = "USER ACTIVE(Sensor)";
-  //   }
-  //   FLog.logThis(
-  //     className: "FromTest",
-  //     methodName: "printFaceFound",
-  //     text: _resultFromSensor,
-  //     type: LogLevel.INFO,
-  //     dataLogType: DataLogType.DEVICE.toString(),
-  //   );
-  // }
-
-  // void printFaceFound(int noOfFaces, dynamic finalResult) {
-  //   List<String> allFaces;
-  //   for (String facelabel in finalResult.keys) {
-  //     allFaces.add(facelabel);
-  //   }
-  //   print("INSIDE PRINTFACE FOUND");
-  //   FLog.logThis(
-  //     className: "FromTest",
-  //     methodName: "printFaceFound",
-  //     text: noOfFaces.toString() + allFaces.toString(),
-  //     type: LogLevel.INFO,
-  //     dataLogType: DataLogType.DEVICE.toString(),
-  //   );
-  // }
-  //=========================ALL LOGGING FUNCTIONS===================================================
-
 }

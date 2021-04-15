@@ -31,10 +31,12 @@ dependencies:
   tflite_flutter: ^0.6.0
   image: ^3.0.2
   sensors: ^2.0.0
-  mic_stream: ^0.5.0
+  # mic_stream: ^0.5.0
   environment_sensors: ^0.2.0
-  record: ^2.1.0+1
+  # record: ^2.1.0+1
   phone_state_i: ^0.0.3
+  # noise_meter: ^2.0.0
+  usage_stats: ^0.1.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
