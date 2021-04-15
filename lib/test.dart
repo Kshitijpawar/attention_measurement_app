@@ -1,18 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
+
 import 'package:environment_sensors/environment_sensors.dart';
 import 'package:phone_state_i/phone_state_i.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'dart:convert';
-import 'dart:io';
-import 'dart:async';
-
 import 'package:mainapp/detector_painters.dart';
-// import 'package:mainapp/mynoise.dart';
 import 'package:mainapp/utils.dart';
 
 import 'package:camera/camera.dart';
-// import 'package:f_logs/f_logs.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:quiver/collection.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
@@ -46,27 +44,21 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   // Timer.run()
   _TestState(this.deviceID, this.houseID, this.dateFromMain) {
     _testPageTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      initUsage();
-      // print("inside time value of ${_faceFoundInterval}");
-      // _faceFoundInterval++;
-      // print("insider timer");
-      // setState(() {
       if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
         // print("insider timer");
-        // if (_scanResults.length == 0)
-        // _faceFoundInterval++;
-        // else {
-        // print("reset _faceFoundInterval");
-        // _faceFoundInterval = 0;
-        // }
-        // print(DateTime.now());
-
-        // print(_scanResults?.keys.toString());
-        doCustomLogging(_scanResults);
+        if (_scanResults.length == 0 && !_appSleep)
+          _faceNotFoundInterval++;
+        else if (_scanResults.length > 0 && !_appSleep) {
+          print("reset _faceFoundInterval since face was found");
+          _faceNotFoundInterval = 0;
+        }
+        if (!_appSleep) {
+          initUsage();
+          doCustomLogging(_scanResults);
+        }
       } else {
-        print(_baseStopwatch.elapsed.inSeconds);
+        // print(_baseStopwatch.elapsed.inSeconds);
         if (_baseStopwatch.elapsed.inMicroseconds > 42000000) {
-          
           setState(() {
             _baseStopwatch.reset();
             print("inside setstate");
@@ -90,10 +82,9 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     });
   }
 
-  //APP STATUS
-  // final PermissionGroup _permissionGroup = PermissionGroup.storage;
   //----------------FACE------------------------------------
-  int _faceFoundInterval = 0;
+  int _faceNotFoundInterval = 0;
+  bool _appSleep = false;
   CameraController _camera;
   dynamic _scanResults;
   var interpreter;
@@ -136,11 +127,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         await UsageStats.queryEvents(dateFromMain, endDate);
 
     this.setState(() {
-      // print("printing used apps list");
-      // if (events != null)
-      // print(events.map((ele) => ele.packageName).toList());
-      // else
-      // print("app list still empty");
       events = queryEvents.reversed.toList();
     });
   }
@@ -189,15 +175,15 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
 
     //Initialize Official Log File
     logDir = await getExternalStorageDirectory();
-    String _logOfficialPath = logDir.path +
-        '/Official_${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
+    String _logOfficialPath =
+        logDir.path + '/Official_${DateTime.now()}_demoLog.txt';
     logOfficialJSONFile = File(_logOfficialPath);
     //Initialize Official Log File
 
     //Initialize UnOfficial Log File
     logDir = await getExternalStorageDirectory();
-    String _logUnofficialPath = logDir.path +
-        '/Unoffcial_${DateTime.now()}_demoLog.txt'; // Change filename to have timestamp of main.dart
+    String _logUnofficialPath =
+        logDir.path + '/Unoffcial_${DateTime.now()}_demoLog.txt';
     logUnofficialJSONFile = File(_logUnofficialPath);
     //Initialize Official Log File
 
@@ -207,19 +193,12 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         _isDetecting = true;
         String res;
         String attention;
-        // String theFinal;
         dynamic finalResult = Multimap<String, Face>();
         detect(image, _getDetectionMethod(), rotation, _baseStopwatch, _isPhone)
             .then(
           (dynamic result) async {
             if (result.length == 0) {
               _faceFound = false;
-              // if (_baseStopwatch.elapsed.inMicroseconds <= 30000000 &&
-              //     _baseStopwatch.elapsed.inSeconds % 3 == 0) {
-              //   print("b4 customLogging");
-              //   doCustomLogging();
-              // }
-              // print("No Person found in frame");
             } else
               _faceFound = true;
             Face _face;
@@ -234,7 +213,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
               imglib.Image croppedImage = imglib.copyCrop(
                   convertedImage, x.round(), y.round(), w.round(), h.round());
               croppedImage = imglib.copyResizeCropSquare(croppedImage, 112);
-              // int startTime = new DateTime.now().millisecondsSinceEpoch;
               res = _recog(croppedImage, _face);
               if (_face.headEulerAngleY.abs() < 10.0 &&
                   _face.headEulerAngleZ.abs() < 10.0) {
@@ -246,21 +224,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
               }
               finalResult.add(res + attention, _face);
             }
-            // if (result.length > 0 &&
-            //     _baseStopwatch.elapsed.inMicroseconds <= 30000000 &&
-            //     _baseStopwatch.elapsed.inSeconds % 3 == 0) {
-            //   // print("INSIDE PRINTFACE FOUND");
-            //   doCustomLogging(finalResult);
-            //   // FLog.logThis(
-            //   //   className: "FromTest",
-            //   //   methodName: "printFaceFound",
-            //   //   text: "number of faces " +
-            //   //       result.length.toString() +
-            //   //       finalResult.keys.toString(),
-            //   //   type: LogLevel.INFO,
-            //   //   dataLogType: DataLogType.DEVICE.toString(),
-            //   // );
-            // }
             setState(() {
               _scanResults = finalResult;
             });
@@ -315,13 +278,47 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     if (_baseStopwatch.elapsed.inMicroseconds <= 30000000) {
       if (_isPhone)
         return false;
-      else
+      else {
+        if (_faceNotFoundInterval > 3) {
+          print("face not found for 9 seconds");
+          if (!_secondaryStopwatch.isRunning) {
+            print("Starting secondary stopwatch");
+            _secondaryStopwatch.start();
+            _secondaryStopwatch.reset();
+          }
+
+          _appSleep = true;
+          if (_secondaryStopwatch.elapsed.inSeconds < 60) {
+            print("secondary stopwatch: " +
+                _secondaryStopwatch.elapsed.inSeconds.toString());
+            return false;
+          }
+          // print/("face not found for 9 seconds");
+          _baseStopwatch.reset();
+          // print("SECONDARY STOPWATCH RESET");
+          _secondaryStopwatch.stop();
+          _appSleep = false;
+          _faceNotFoundInterval = 0;
+          return true;
+        }
+
         return true;
+      }
     } else if (_baseStopwatch.elapsed.inMicroseconds < 40000000) {
-      print(_baseStopwatch.elapsed.inSeconds.toString() + "in cooldown");
+      if (_secondaryStopwatch.elapsed.inSeconds > 60 &&
+          _secondaryStopwatch.isRunning) {
+        _secondaryStopwatch.stop();
+        _appSleep = false;
+        _faceNotFoundInterval = 0;
+      }
       return false;
     } else if (_baseStopwatch.elapsed.inMicroseconds > 40000000) {
-      print(_baseStopwatch.elapsed.inSeconds.toString() + "cyclecomplete");
+      if (_secondaryStopwatch.elapsed.inSeconds > 60 &&
+          _secondaryStopwatch.isRunning) {
+        _secondaryStopwatch.stop();
+        _appSleep = false;
+        _faceNotFoundInterval = 0;
+      }
       _baseStopwatch.reset();
       return true;
     }
@@ -352,7 +349,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // print(widget.notificationMain.toString() + "reporting from test.dart");
     // final List<String> accelerometer =
     //     _accelerometerValues?.map((double v) => v.toStringAsFixed(3))?.toList();
     // final List<String> gyroscope =
@@ -431,8 +427,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   //-----------------------------------dispose and init state----------------------------------------
   @override
   void dispose() {
-    // FLog.exportLogs();
-    // FLog.clearLogs();
     // _someTimer.cancel();
     logOfficialJSONFile.writeAsString(
         logOfficialBuffer.toString()); // write string buffer to a file
@@ -444,15 +438,10 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
     // interpreter.close();
     _camera.dispose();
 
-    // FLog.clearLogs();
-
     for (StreamSubscription<dynamic> subscription in _streamSubscriptions) {
       subscription.cancel();
     }
     print("exiting the test page");
-    // interpreter.close();
-    // print("released Interpreter");
-
     super.dispose();
   }
 
@@ -622,8 +611,6 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         //now log this
         List<dynamic> getNames =
             myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
-        // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
-        //
         LogClass _tempOfficialObj = LogClass(
             DateTime.now(),
             myScanResult.length,
@@ -634,11 +621,8 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         print(_tempOfficialObj.toString());
         logOfficialBuffer.write(_tempOfficialObj.toString());
       } else {
-        //if app usage is found
-        // print("TODO FOR WHEN FACE IS FOUND");
         List<dynamic> getNames =
             myScanResult.keys.map((ele) => ele.split(",")[0]).toList();
-        // List<String> getAttention = myScanResult.keys.map((ele) => ele.split(", "))
         LogClass _tempOfficialObj = LogClass(
             DateTime.now(),
             myScanResult.length,

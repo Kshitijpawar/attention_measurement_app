@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 // import 'package:mainapp/noise_detect.dart';
 import 'package:mainapp/register.dart';
 import 'package:mainapp/test.dart';
-import 'package:mainapp/app_use.dart';
+// import 'package:mainapp/app_use.dart';
 // import 'package:mainapp/debug_sensors.dart';
 // import 'package:mainapp/test1.dart';
 // import 'package:mainapp/test2.dart';
@@ -135,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 color: Colors.blueAccent,
               ),
             ),
-            
+
             // Container(
             //   margin: EdgeInsets.all(15),
             //   child: FlatButton(
@@ -152,20 +152,20 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             //     color: Colors.blueAccent,
             //   ),
             // ),
-            Container(
-              margin: EdgeInsets.all(25),
-              child: FlatButton(
-                onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => AppUse(mainDate: mainDate)));
-                },
-                child: Text("APPUSAGE"),
-                textColor: Colors.white,
-                color: Colors.blueAccent,
-              ),
-            ),
+            // Container(
+            //   margin: EdgeInsets.all(25),
+            //   child: FlatButton(
+            //     onPressed: () {
+            //       Navigator.push(
+            //           context,
+            //           MaterialPageRoute(
+            //               builder: (context) => AppUse(mainDate: mainDate)));
+            //     },
+            //     child: Text("APPUSAGE"),
+            //     textColor: Colors.white,
+            //     color: Colors.blueAccent,
+            //   ),
+            // ),
             // Container(
             //   margin: EdgeInsets.all(15),
             //   child: FlatButton(
