@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-// import 'package:mainapp/audio_stream.dart';
+import 'package:mainapp/audio_stream.dart';
 // import 'package:mainapp/customlog.dart';
 // import 'package:mainapp/finalappuse.dart';
 // import 'package:mainapp/noise_detect.dart';
@@ -207,18 +207,18 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             //     color: Colors.blueAccent,
             //   ),
             // ),
-            // Container(
-            //   margin: EdgeInsets.all(15),
-            //   child: FlatButton(
-            //     onPressed: () {
-            //       Navigator.push(context,
-            //           MaterialPageRoute(builder: (context) => TestTimer()));
-            //     },
-            //     child: Text("Timer Test"),
-            //     textColor: Colors.white,
-            //     color: Colors.blueAccent,
-            //   ),
-            // ),
+            Container(
+              margin: EdgeInsets.all(15),
+              child: FlatButton(
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => AudioStream()));
+                },
+                child: Text("Audio input test"),
+                textColor: Colors.white,
+                color: Colors.blueAccent,
+              ),
+            ),
           ],
         ),
       ),

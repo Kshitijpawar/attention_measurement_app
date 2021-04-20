@@ -31,6 +31,12 @@ class Test extends StatefulWidget {
 }
 
 class _TestState extends State<Test> with WidgetsBindingObserver {
+  //microphone volume level
+  double _theWidgetVolume = -1;
+  bool isRecording = false;
+  static const platform =
+      const MethodChannel('samples.flutter.dev/recordingaudio');
+  //microphone volume level
   //deviceID and houseID receiver
   String deviceID, houseID;
   DateTime dateFromMain;
@@ -54,6 +60,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         }
         if (!_appSleep) {
           initUsage();
+          _getEnvVolume();
           doCustomLogging(_scanResults);
         }
       } else {
@@ -132,6 +139,43 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   }
 
 //app use
+
+//microphone level
+// start custom recording
+  Future<void> _startCustomRecording() async {
+    try {
+      await platform.invokeMethod('startREC');
+    } on PlatformException catch (e) {
+      print(e.message);
+    }
+  }
+
+  // stop custom recording
+  Future<void> _stopCustomRecording() async {
+    if (isRecording) {
+      try {
+        isRecording = false;
+        await platform.invokeMethod('stopREC');
+      } on PlatformException catch (e) {
+        print(e.message);
+      }
+    }
+  }
+
+  // get volume custom
+  Future<void> _getEnvVolume() async {
+    try {
+      final double theVolume = await platform.invokeMethod('getVolume');
+      // print(theVolume.toStringAsFixed(3) + " got this from channel");
+      // setState(() {
+      _theWidgetVolume = theVolume;
+      // });
+    } on PlatformException catch (e) {
+      print(e.message + " found error");
+    }
+  }
+
+//microphone level
   Future loadModel() async {
     try {
       final gpuDelegateV2 = tfl.GpuDelegateV2(
@@ -280,17 +324,17 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         return false;
       else {
         if (_faceNotFoundInterval > 3) {
-          print("face not found for 9 seconds");
+          // print("face not found for 9 seconds");
           if (!_secondaryStopwatch.isRunning) {
-            print("Starting secondary stopwatch");
+            // print("Starting secondary stopwatch");
             _secondaryStopwatch.start();
             _secondaryStopwatch.reset();
           }
 
           _appSleep = true;
           if (_secondaryStopwatch.elapsed.inSeconds < 60) {
-            print("secondary stopwatch: " +
-                _secondaryStopwatch.elapsed.inSeconds.toString());
+            // print("secondary stopwatch: " +
+            //     _secondaryStopwatch.elapsed.inSeconds.toString());
             return false;
           }
           // print/("face not found for 9 seconds");
@@ -428,6 +472,7 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   @override
   void dispose() {
     // _someTimer.cancel();
+    _stopCustomRecording();
     logOfficialJSONFile.writeAsString(
         logOfficialBuffer.toString()); // write string buffer to a file
     logOfficialBuffer.clear(); // clear the buffer
@@ -448,7 +493,8 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-
+    _startCustomRecording();
+    isRecording = true;
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     _initializeCamera();
@@ -500,13 +546,17 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
         _userAccelerometerValues = <double>[event.x, event.y, event.z];
       });
     }));
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   print("inside init state");
+
+    // });
   }
 
   //-----------------------------------dispose and init state----------------------------------------
   //=========================ALL LOGGING FUNCTIONS===================================================
   doCustomLogging([dynamic myScanResult]) {
     String logPersonName;
-    String logPersonAttention;
+    String logPersonAttention = "unintialized";
     List<String> _appPackageNames;
     List<String> _restrictedApps = ["zoom", "instagram", "whatsapp"];
     List<String> _foundAppResult = [];
@@ -517,7 +567,17 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
           _gyroscopeValues[0].abs().toStringAsFixed(1) == "0.0" &&
           _gyroscopeValues[1].abs().toStringAsFixed(1) == "0.0" &&
           _gyroscopeValues[2].abs().toStringAsFixed(1) == "0.0") {
-        logPersonAttention = "USER INACTIVE(Sensor) ";
+        //microphone value
+        if (_theWidgetVolume != -1 && !_theWidgetVolume.isInfinite) {
+          if (_theWidgetVolume > 80) {
+            logPersonAttention = "USER INACTIVE(Sensor), Noise level high";
+          } else {
+            //not noisy
+            // print("$_theWidgetVolume is noise level");
+            logPersonAttention = "USER INACTIVE(Sensor), Noise level low";
+          }
+        } else
+          logPersonAttention = "USER INACTIVE(Sensor) ";
       } else {
         logPersonAttention = "USER ACTIVE(Sensor)";
       }
@@ -573,14 +633,16 @@ class _TestState extends State<Test> with WidgetsBindingObserver {
             logPersonAttention,
             deviceID,
             houseID);
-        String gyroVal = "Gyro[X, Y, Z]: " + _gyroscopeValues.toString();
+        String gyroVal = " Gyro[X, Y, Z]: " + _gyroscopeValues.toString();
         String accVal =
-            "User Acc[X, Y, Z]:" + _userAccelerometerValues.toString();
+            " User Acc[X, Y, Z]:" + _userAccelerometerValues.toString();
+        String volVal =
+            " Volume(in Db): " + _theWidgetVolume.toStringAsFixed(3);
         LogClass _tempUnofficialObj = LogClass(
             DateTime.now(),
             myScanResult.length,
             logPersonName + " LightVal: " + _lightVal.toString(),
-            logPersonAttention + gyroVal + accVal,
+            logPersonAttention + gyroVal + accVal + volVal,
             deviceID,
             houseID);
         print(_tempOfficialObj.toString());
