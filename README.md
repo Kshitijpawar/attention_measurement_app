@@ -1,6 +1,6 @@
 # mainapp
 
-A new Flutter project.
+Flutter app to measure user attention and app activity. 
 
 ## Getting Started
 
